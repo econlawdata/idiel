@@ -1,5 +1,9 @@
-import pandas as pd
 import re
+from os import chdir
+from pathlib import Path
+
+import pandas as pd
+
 
 # Functions get_icsid_prefixes_in_dispute_titles and get_icsid_prefixes_in_icsidscrape
 # are for finding malformed ICSID Case No. in dispute titles
@@ -90,8 +94,11 @@ def get_unmatched_caseno(caseno_case_id_dispute_id):
 
 
 if __name__ == "__main__":
-    icsid_cases = pd.read_csv('case_icsidscrape.csv', header=None, names=['case_id', 'caseno'])
-    disputes = pd.read_csv('dispute_scrapedb.csv', header=None, names=['dispute_id', 'title'])
+    # If failed, please change the dir accordingly
+    chdir('../../ITA/metadata')
+
+    icsid_cases = pd.read_csv('case_id_caseno_icsidscrape.csv', header=0, names=['case_id', 'caseno'])
+    disputes = pd.read_csv('dispute_id_title_with_icsid_scrapedb.csv', header=0, names=['dispute_id', 'title'])
 
     caseno_prefixes_in_dispute, unmatched_titles = get_icsid_prefixes_in_dispute_titles(disputes.title)
     caseno_prefixes_in_icsidscrape = get_icsid_prefixes_in_icsidscrape(icsid_cases.caseno)
@@ -113,16 +120,28 @@ if __name__ == "__main__":
     '''
     # END OF OUTPUTS
 
-    casenos_in_dispute_titles, unmatched_titles_in_caseno_extraction = extract_icsid_caseno_from_dispute_titles(disputes.title)
+    casenos_in_dispute_titles, unmatched_titles_in_caseno_extraction = extract_icsid_caseno_from_dispute_titles(
+        disputes.title)
     disputes['icsid_caseno'] = casenos_in_dispute_titles
 
-    print('\nUnmatched titles during extraction of Case No. in dispute titles:\n' + '\n'.join(unmatched_titles_in_caseno_extraction))
+    print('\nUnmatched titles during extraction of Case No. in dispute titles:\n' +
+          '\n'.join(unmatched_titles_in_caseno_extraction))
 
+    # Create a dir to store intermediate tables for reference
+    Path('intermediate').mkdir(exist_ok=True)
+
+    ###
     print('\nSaving dispute titles with extracted ICSID Case No.')
-    disputes.to_csv('dispute_title_with_icsid_caseno.csv', index=None)
+    disputes.to_csv('intermediate/dispute_title_with_icsid_caseno.csv', index=None)
 
-    print('Merging scrapedb.dispute and icsidscrape.case')
-    merged_df = merge_dispute_icsid_cases(disputes, icsid_cases)
-    merged_df.to_csv('merged_dispute_icsid.csv', columns=['caseno', 'icsid_caseno', 'case_id', 'dispute_id'], index=None)
+    ###
+    print('Merging IDs in scrapedb.dispute and icsidscrape.case')
+    merged_id_df = merge_dispute_icsid_cases(disputes, icsid_cases)
+    merged_id_df.to_csv('intermediate/merged_id_dispute_icsid.csv',
+                        columns=['caseno', 'icsid_caseno', 'case_id', 'dispute_id'],
+                        index=None)
 
-    print('\nCase No. without matched dispute:\n' + '\n'.join(get_unmatched_caseno(merged_df)))
+    ###
+    pass
+
+    print('\nCase No. without matched dispute:\n' + '\n'.join(get_unmatched_caseno(merged_id_df)))
